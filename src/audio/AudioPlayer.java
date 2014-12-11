@@ -1,9 +1,12 @@
 package audio;
 
+import java.io.IOException;
+
 import javax.sound.sampled.*;
 
 public class AudioPlayer {
 	
+	private static boolean canPlayAudio = true;
 	private Clip clip;
 	
 	/**
@@ -11,14 +14,18 @@ public class AudioPlayer {
 	 * @param s path to the file to play
 	 */
 	public AudioPlayer(String s) {
-		
-		try {
-			AudioInputStream ais = AudioSystem.getAudioInputStream(getClass().getResource(s));
-			clip = AudioSystem.getClip();
-			clip.open(ais);
-		}
-		catch(Exception e) {
-			e.printStackTrace();
+		if (canPlayAudio) {
+			try {
+				AudioInputStream ais = AudioSystem.getAudioInputStream(getClass().getResource(s));
+				clip = AudioSystem.getClip();
+				clip.open(ais);
+			}
+			catch (IOException e) {
+				e.printStackTrace();
+			}
+			catch (Exception e) {
+				canPlayAudio = false;
+			}
 		}
 	}
 	
@@ -26,7 +33,9 @@ public class AudioPlayer {
 	 * Plays the clip from the start
 	 */
 	public void play() {
-		if(clip == null) return;
+		if (clip == null){
+			return;
+		}
 		stop();
 		clip.setFramePosition(0);
 		clip.start();

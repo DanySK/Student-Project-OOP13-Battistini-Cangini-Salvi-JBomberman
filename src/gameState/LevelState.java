@@ -46,8 +46,8 @@ public abstract class LevelState implements GameState {
 	private Timer enemyTimer;
 
 	// Pressed keys
+	protected Map<Integer,LinkedList<Integer>> controls = new HashMap<>();
 	private CopyOnWriteArraySet<Integer> keys;
-	protected Map<Integer,LinkedList<Integer>> commands = new HashMap<>();
 
 	// Graphic style 
 	public static enum Stage {
@@ -62,23 +62,23 @@ public abstract class LevelState implements GameState {
 		enemyTimer = null;
 		levelTimer = null;
 
-		//player1 commands
+		// player1 controls
 		LinkedList<Integer> tmp1 = new LinkedList<>();
 		tmp1.add(KeyEvent.VK_ENTER);
 		tmp1.add(KeyEvent.VK_LEFT);
 		tmp1.add(KeyEvent.VK_RIGHT);
 		tmp1.add(KeyEvent.VK_UP);
 		tmp1.add(KeyEvent.VK_DOWN);
-		commands.put(0, tmp1);
+		controls.put(0, tmp1);
 
-		//player2 commands
+		// player2 controls
 		LinkedList<Integer> tmp2 = new LinkedList<>();
 		tmp2.add(KeyEvent.VK_SPACE);
 		tmp2.add(KeyEvent.VK_A);
 		tmp2.add(KeyEvent.VK_D);
 		tmp2.add(KeyEvent.VK_W);
 		tmp2.add(KeyEvent.VK_S);
-		commands.put(1, tmp2);
+		controls.put(1, tmp2);
 
 		this.name = name;
 
@@ -96,6 +96,7 @@ public abstract class LevelState implements GameState {
 
 		players.clear();
 		enemies.clear();
+		enemyTimer = null;
 
 		tileMap = new TileMap(tilesize);
 		tileMap.loadTiles("/tilesets/" + getStage() + "tileset.png");
@@ -155,23 +156,37 @@ public abstract class LevelState implements GameState {
 
 		if (me instanceof Player) {
 			Player p = (Player)me;
-			if (cell.getTile().getType() == Tile.BREAKABLE && !p.canWalkThroughBlocks()) return false;
-			if (cell.Contains(Bomb.class) && !p.canWalkThroughBombs() && !p.canKick()) return false;
+			if (cell.getTile().getType() == Tile.BREAKABLE && !p.canWalkThroughBlocks()) {
+				return false;
+			}
+			if (cell.Contains(Bomb.class) && !p.canWalkThroughBombs() && !p.canKick()) {
+				return false;
+			}
 		} 
 		else { 
 			if (me instanceof Bomb) {
-				if (cell.contains(((Bomb)me).getOwner()) && cell.Get(MovableEntity.class).size() > 1) return false; 
-				if (!cell.contains(((Bomb)me).getOwner()) && cell.Contains((MovableEntity.class))) return false;
+				if (cell.contains(((Bomb)me).getOwner()) && cell.Get(MovableEntity.class).size() > 1) {
+					return false; 
+				}
+				if (!cell.contains(((Bomb)me).getOwner()) && cell.Contains((MovableEntity.class))) {
+					return false;
+				}
 				//la bomba non può essere piazzata se c'è qualcuno, oltre a colui che la piazza, nella stessa cella
 			} 
 			if (me instanceof Enemy){
-				if (cell.Contains(MovableEntity.class) && !cell.Contains(Player.class)) return false; 
+				if (cell.Contains(MovableEntity.class) && !cell.Contains(Player.class)) {
+					return false; 
+				}
 				//un nemico non può andare su una cella con un altro nemico
 				//al contrario può e deve andare su una cella contenente un player
 			}
-			if (cell.getTile().getType() == Tile.BREAKABLE) return false; //bombe e nemici non possono attraversare blocchi distruttibili
+			if (cell.getTile().getType() == Tile.BREAKABLE) {
+				return false; //bombe e nemici non possono attraversare blocchi distruttibili
+			}
 		}
-		if (cell.getTile().getType() == Tile.UNBREAKABLE) return false; //nessuno può attraversare blocchi indistruttibili
+		if (cell.getTile().getType() == Tile.UNBREAKABLE) {
+			return false; //nessuno può attraversare blocchi indistruttibili
+		}
 
 		return true;
 	}
@@ -179,8 +194,8 @@ public abstract class LevelState implements GameState {
 	private void move(MovableEntity p, Point newpos) {
 		Point oldPos = (Point)p.getPosition().clone();
 
-		int o = (int) Math.signum( newpos.x - oldPos.x );
-		int v = (int) Math.signum( newpos.y - oldPos.y );
+		int o = (int) Math.signum(newpos.x - oldPos.x);
+		int v = (int) Math.signum(newpos.y - oldPos.y);
 
 		if (isWalkable(tileMap.getCell(newpos),p)) {
 
@@ -214,7 +229,6 @@ public abstract class LevelState implements GameState {
 		players.put(players.size(), p);
 		ClearSpawnZone(p);
 		tileMap.getCell(p.getPosition()).add(p);
-
 	}
 
 	public void addEnemy(Enemy enemy) {
@@ -235,19 +249,24 @@ public abstract class LevelState implements GameState {
 					if (enemies.isEmpty() || players.isEmpty()) {
 						enemyTimer.cancel();
 					}
-
+					
 					for (Enemy enemy : enemies) {
-						if (enemy.isGoingLeft()) {
-							move(enemy, new Point(enemy.getPosition().x-1, enemy.getPosition().y) );
+						try {
+							if (enemy.isGoingLeft()) {
+								move(enemy, new Point(enemy.getPosition().x-1, enemy.getPosition().y));
+							}
+							if (enemy.isGoingRight()) {
+								move(enemy, new Point(enemy.getPosition().x+1, enemy.getPosition().y));
+							}
+							if (enemy.isGoingUp()) {
+								move(enemy, new Point(enemy.getPosition().x, enemy.getPosition().y-1));
+							}
+							if (enemy.isGoingDown()) {
+								move(enemy, new Point(enemy.getPosition().x, enemy.getPosition().y+1));
+							}
 						}
-						if (enemy.isGoingRight()) {
-							move(enemy, new Point(enemy.getPosition().x+1, enemy.getPosition().y) );
-						}
-						if (enemy.isGoingUp()) {
-							move(enemy, new Point(enemy.getPosition().x, enemy.getPosition().y-1) );
-						}
-						if (enemy.isGoingDown()) {
-							move(enemy, new Point(enemy.getPosition().x, enemy.getPosition().y+1) );
+						catch (Exception e) {
+							break;
 						}
 					}
 				}
@@ -297,9 +316,8 @@ public abstract class LevelState implements GameState {
 			}
 		}
 
-		if(players.isEmpty() || remainingSeconds == 0) {
+		if (players.isEmpty() || remainingSeconds == 0) {
 			enemyTimer.cancel();
-			enemyTimer = null;
 			GameStateManager.getManager().setState(GameStateManager.MENUSTATE);
 		} 
 		else {
@@ -339,8 +357,9 @@ public abstract class LevelState implements GameState {
 
 		for (Integer k : keys) {
 
-			if (k == commands.get(n).get(0)) /*enter o spazio*/{
+			if (k == controls.get(n).get(0)) /*enter o spazio*/{
 				if(player.placedBombs < player.getAllowedBombs() && !tileMap.getCell(player.getPosition()).Contains(Bomb.class)) {
+					
 					//la seconda condizione serve ad evitare che, nel caso di player in grado di piazzare + bombe,
 					//tutte le bombe vengano messe una sull'altra nella stessa cella
 					//l'1 nell'add serve per inserire sempre la bomba sotto il player
@@ -349,16 +368,24 @@ public abstract class LevelState implements GameState {
 						sfx.get("place").play();
 					}
 				}
-			} else if (k == commands.get(n).get(1)) /*freccia sinistra o A*/{ 
+			}
+			// freccia sinistra o A
+			else if (k == controls.get(n).get(1)) { 
 				player.setLeft(true);
 				move(player, new Point(player.getPosition().x-1, player.getPosition().y) );
-			} else if (k == commands.get(n).get(2)) /*freccia destra o D*/{
+			} 
+			// freccia destra o D
+			else if (k == controls.get(n).get(2)) {
 				player.setRight(true);
 				move(player, new Point(player.getPosition().x+1, player.getPosition().y) );
-			} else if (k == commands.get(n).get(3)) /*freccia su o W*/{
+			} 
+			// freccia su o W
+			else if (k == controls.get(n).get(3)){
 				player.setUp(true);
 				move(player, new Point(player.getPosition().x, player.getPosition().y-1) );
-			} else if (k == commands.get(n).get(4)) /*freccia giù o S*/{
+			} 
+			// freccia giù o S
+			else if (k == controls.get(n).get(4)){
 				player.setDown(true);
 				move(player, new Point(player.getPosition().x, player.getPosition().y+1) );
 			}
@@ -368,9 +395,13 @@ public abstract class LevelState implements GameState {
 
 	@Override
 	public void keyPressed(int k) {
+		if (k == KeyEvent.VK_ESCAPE) {
+			remainingSeconds = 0;
+			return;
+		}
 
-		if ( (players.size() >= 1 && commands.get(0).contains(k)) || 
-				(players.size() >= 2 && commands.get(1).contains(k)) ) {
+		if ((players.size() >= 1 && controls.get(0).contains(k)) || 
+				(players.size() >= 2 && controls.get(1).contains(k)) ) {
 			keys.add(k);
 		}
 
